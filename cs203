@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess
+import nbformat
+import click
+import markdown
+import mdtex2html
+from textwrap import wrap
+
+#@click.command()
+#@click.option("--out",  "-o", help="Output file", show_default=True)
+#@click.argument("notebook", nargs=1,type=click.File("r"))
+
+def nbturnin(notebook=None, out=None):
+    
+    nb = nbformat.read(notebook, as_version=nbformat.NO_CONVERT)
+
+    in_answer_section = 0
+    
+    for cell_index, cell in reversed(list(enumerate(nb.cells))): # in reverse so we can delete in place.
+        cell = nb.cells[cell_index]
+        
+        if "solution2" in cell.metadata:
+            del cell.metadata["solution2"]
+            
+        if "solution2_first" in cell.metadata:
+            del cell.metadata["solution2_first"]
+
+        if cell.cell_type == "code":
+            lines = wrap(cell.source, 80) #wrap outputs a list of lines
+            cell.source = '\ \n'.join(lines)    #so join 'em with newline
+
+        if cell.cell_type == "markdown":
+            lines = cell.source #wrap outputs a list of lines
+#            cell.source = mdtex2html.convert(lines)    #so join 'em with newline
+#            print(cell.source)
+
+        if cell.metadata.get("cs203.is_answer_start", False): 
+            in_answer_section -= 1  # the sign is backward because we process the notebook in reverse.
+        if cell.metadata.get("cs203.is_answer_end", False):
+            in_answer_section += 1
+            
+        if cell.metadata.get('cs203.is_response', False) or in_answer_section > 0:
+            pass
+        else:
+            del nb.cells[cell_index]
+
+
+    if out is None:
+        out = ".".join(notebook.name.split(".")[:-1] + ["turnin", "ipynb"])
+    with open(out, "w") as f:
+        nbformat.write(nb, f, version=nbformat.NO_CONVERT)
+
+    click.echo(f"Wrote to {out}")
+    
+
+def main():
+    if (sys.argv[1] == "job") and (sys.argv[2] == "run"):
+#        commandLine = ' '.join(sys.argv[3:])
+#        commandLine = ' '.join(sys.argv[3])
+        commands = sys.argv[3].split(";")
+        for commandLine in commands:
+            print(os.environ.get('USER'))
+#            commandLine = "ssh "+os.environ.get('USER')+"@horsea \"cd "+os.getcwd()+"; srun -N1 -p cs203 " + commandLine + "\""
+            commandLine = "srun -N1 -p datahub " + commandLine 
+#            print(commandLine)
+            os.system(commandLine)
+#            subprocess.check_call(commandLine, shell=True)
+#            subprocess.run(sys.argv[3:], capture_output=True, text=True).stdout
+        sys.exit(0)
+    elif (sys.argv[1] == "job") and (sys.argv[2] == "memory"):
+#        commandLine = ' '.join(sys.argv[3:])
+#        commandLine = ' '.join(sys.argv[3])
+        commands = sys.argv[3].split(";")
+        for commandLine in commands:
+            commandLine = "srun -N1 -p zen3 " + commandLine
+            print(commandLine)
+            os.system(commandLine)
+#            subprocess.check_call(commandLine, shell=True)
+#            subprocess.run(sys.argv[3:], capture_output=True, text=True).stdout
+        sys.exit(0)
+    elif (sys.argv[1] == "job") and (sys.argv[2] == "demo"):
+#        commandLine = ' '.join(sys.argv[3:])
+#        commandLine = ' '.join(sys.argv[3])
+        commands = sys.argv[3].split(";")
+        for commandLine in commands:
+            commandLine = "srun -N1 -p escal " + commandLine
+            print(commandLine)
+            os.system(commandLine)
+#            subprocess.check_call(commandLine, shell=True)
+#            subprocess.run(sys.argv[3:], capture_output=True, text=True).stdout
+        sys.exit(0)
+    elif (sys.argv[1] == "turnin"):
+        nbturnin(open(sys.argv[2]))
+        sys.exit(0)
+    else:
+        print ("Incorrect command")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()
